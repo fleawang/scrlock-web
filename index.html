@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>设备控制</title>
+<!-- 本地 mqtt.js（避免依赖外网 CDN，国内访问更稳定）。如缺失请运行 download_mqttjs.bat 或 README 中的命令下载。 -->
+<script src="mqtt.min.js"></script>
+<!-- 本地 html5-qrcode（扫码配对用），如缺失请运行 download_qrcodejs.bat 下载。 -->
+<script src="html5-qrcode.min.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 20px; font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f2f3f5; color: #1a1a1a; max-width: 480px; margin: 0 auto;
+  }
+  h1 { font-size: 22px; margin: 8px 0 16px; }
+  .card {
+    background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  }
+  label { display: block; font-size: 13px; color: #666; margin: 10px 0 6px; }
+  input {
+    width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 10px;
+    font-size: 15px; outline: none;
+  }
+  input:focus { border-color: #07c160; }
+  .timer {
+    text-align: center; font-size: 52px; font-weight: 700; margin: 6px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .status { text-align: center; color: #888; font-size: 14px; margin-bottom: 4px; }
+  button {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px;
+    font-weight: 600; color: #fff; margin-top: 12px;
+  }
+  .btn-start { background: #07c160; }
+  .btn-unlock { background: #fa5151; }
+  .btn-exit { background: #999; }
+  .btn-pair { background: #10aeff; }
+  .btn-scan { background: #ff9f0a; }
+  .hint { font-size: 12px; color: #999; margin-top: 8px; line-height: 1.5; }
+  .ring { display: block; margin: 0 auto; }
+  #pairCard { transition: opacity .3s; }
+  .hidden { display: none; }
+  #reader { width: 100%; max-width: 320px; margin: 10px auto 0; }
+  #reader video { border-radius: 12px; }
+</style>
+</head>
+<body>
+
+<h1>设备控制</h1>
+
+<!-- 配对区 -->
+<div class="card" id="pairCard">
+  <label>设备ID</label>
+  <input id="deviceId" placeholder="例如 PC1A2B3C4D5E6" autocapitalize="characters" />
+  <label>密钥</label>
+  <input id="deviceKey" placeholder="粘贴电脑生成的密钥" />
+  <button class="btn-pair" onclick="doPair()">配对并连接</button>
+  <button class="btn-scan" id="scanBtn" onclick="toggleScan()">扫码配对</button>
+  <div id="reader" class="hidden"></div>
+  <div class="hint">在电脑端首次运行时，会显示 设备ID 与 密钥。可手动填入，或点「扫码配对」扫描电脑上的二维码自动填写。网页本身即控制权，请妥善保管。</div>
+</div>
+
+<!-- 控制区 -->
+<div class="card hidden" id="ctrlCard">
+  <div class="status" id="statusText">状态：未连接</div>
+  <div class="timer" id="timer">--:--</div>
+
+  <!-- 审批：孩子申请临时解锁 -->
+  <div class="hidden" id="approveCard" style="margin-top:14px;padding:14px;border:2px solid #ff9f0a;border-radius:12px;background:#fff7ec;">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">👦 孩子申请临时解锁（5分钟）</div>
+    <div class="hint">孩子已点击电脑上的「申请临时解锁」。你可批准或拒绝。</div>
+    <button class="btn-start" onclick="sendApprove()">✅ 批准（解锁5分钟）</button>
+    <button class="btn-unlock" onclick="sendReject()">❌ 拒绝</button>
+  </div>
+
+  <label>设置倒计时（分钟）</label>
+  <input id="minutes" type="number" value="30" min="1" max="600" />
+
+  <label>提前提醒（剩余分钟时开始出现红字提示）</label>
+  <input id="warnBefore" type="number" value="5" min="1" max="600" />
+
+  <button class="btn-start" onclick="sendStart()">开始倒计时</button>
+  <button class="btn-unlock" onclick="sendUnlock()">解锁 / 解除锁屏</button>
+  <button class="btn-exit" onclick="exitPair()">退出配对</button>
+  <div class="hint">解锁按钮：锁屏时点击可远程解除（孩子继续可用）；倒计时中点击可取消本次倒计时。配对状态会自动保存，重开本网页无需重新输入。</div>
+</div>
+
+<script>
+const BROKER_WS = "wss://broker.emqx.io:8084/mqtt";
+const LS_KEY = "scrlock_pair";   // 持久化配对信息
+let client = null;
+let deviceId = "", deviceKey = "";
+let lastRemaining = 0;
+
+// ---- HMAC-SHA256 签名（Web Crypto）----
+async function hmacSign(key, obj) {
+  const msg = JSON.stringify(obj, Object.keys(obj).sort());
+  const enc = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw", enc.encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(msg));
+  return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function topic(cmd) { return `scrlock/${deviceId}/${cmd}`; }
+function requestTopic() { return `scrlock/${deviceId}/request`; }
+
+function fmt(sec) {
+  sec = Math.max(0, sec | 0);
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+}
+
+function setStatus(t) { document.getElementById("statusText").textContent = t; }
+
+// ---- 配对持久化 ----
+function savePair() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ deviceId, deviceKey })); } catch (e) {}
+}
+function loadPair() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (o && o.deviceId && o.deviceKey) return o;
+  } catch (e) {}
+  return null;
+}
+function clearPair() {
+  try { localStorage.removeItem(LS_KEY); } catch (e) {}
+}
+
+function doPair() {
+  deviceId = document.getElementById("deviceId").value.trim().toUpperCase();
+  deviceKey = document.getElementById("deviceKey").value.trim();
+  if (!deviceId || !deviceKey) { alert("请填写设备ID和密钥"); return; }
+  connectAndSubscribe();
+}
+
+function connectAndSubscribe() {
+  if (client) {  // 已连接则只刷新界面
+    document.getElementById("pairCard").classList.add("hidden");
+    document.getElementById("ctrlCard").classList.remove("hidden");
+    return;
+  }
+  if (typeof mqtt === "undefined") {
+    alert("MQTT 库未加载（mqtt.min.js 缺失或被拦截）。\n请将 web_control 整个文件夹一起使用，或改用 https 方式打开网页。");
+    return;
+  }
+  try {
+    client = mqtt.connect(BROKER_WS, {
+      clientId: "scrlock-web-" + Math.random().toString(16).slice(2),
+      connectTimeout: 8000,
+      reconnectPeriod: 3000,
+    });
+  } catch (e) {
+    alert("连接初始化失败：" + e);
+    return;
+  }
+  client.on("connect", () => {
+    document.getElementById("pairCard").classList.add("hidden");
+    document.getElementById("ctrlCard").classList.remove("hidden");
+    setStatus("已连接，等待状态…");
+    client.subscribe(topic("state"), { qos: 1 });
+    client.subscribe(requestTopic(), { qos: 1 });
+    savePair();   // 配对成功，持久化
+  });
+  client.on("error", e => setStatus("连接错误：" + (e && e.message ? e.message : e)));
+  client.on("offline", () => setStatus("已断开，重连中…"));
+  client.on("message", (tp, payload) => {
+    if (tp === topic("state")) {
+      try {
+        const d = JSON.parse(payload.toString());
+        lastRemaining = d.remaining || 0;
+        document.getElementById("timer").textContent = fmt(lastRemaining);
+        const map = { idle: "空闲", counting: "倒计时中", warned: "提醒中", locked: "已锁屏", unlock: "已解除" };
+        setStatus("状态：" + (map[d.state] || d.state));
+      } catch (e) {}
+    } else if (tp === requestTopic()) {
+      // 孩子申请临时解锁
+      document.getElementById("approveCard").classList.remove("hidden");
+      setStatus("孩子发来临时解锁申请");
+    }
+  });
+}
+
+// 退出配对（清除保存、断开连接、回到配对页）
+function exitPair() {
+  if (client) { try { client.end(true); } catch (e) {} client = null; }
+  clearPair();
+  deviceId = ""; deviceKey = "";
+  document.getElementById("ctrlCard").classList.add("hidden");
+  document.getElementById("pairCard").classList.remove("hidden");
+  setStatus("已退出配对");
+}
+
+// ---- 扫码配对 ----
+let html5Qr = null;
+let scanning = false;
+function toggleScan() {
+  const btn = document.getElementById("scanBtn");
+  const reader = document.getElementById("reader");
+  if (scanning) {
+    stopScan();
+    btn.textContent = "扫码配对";
+    return;
+  }
+  reader.classList.remove("hidden");
+  btn.textContent = "停止扫码";
+  html5Qr = new Html5Qrcode("reader");
+  scanning = true;
+  html5Qr.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 240 },
+    onScanSuccess,
+    () => {}
+  ).catch(err => {
+    alert("无法开启摄像头，请手动输入。\n" + err);
+    stopScan();
+    btn.textContent = "扫码配对";
+  });
+}
+function onScanSuccess(decoded) {
+  // 解析 scrlock://设备ID/密钥
+  const m = /^scrlock:\/\/([^/]+)\/(.+)$/.exec(decoded);
+  if (!m) { alert("二维码内容无法识别，请扫描电脑端生成的配对二维码。"); return; }
+  stopScan();
+  document.getElementById("scanBtn").textContent = "扫码配对";
+  document.getElementById("deviceId").value = m[1];
+  document.getElementById("deviceKey").value = m[2];
+  doPair();   // 自动填入并配对
+}
+function stopScan() {
+  if (html5Qr && scanning) {
+    html5Qr.stop().then(() => html5Qr.clear()).catch(() => {});
+  }
+  scanning = false;
+  document.getElementById("reader").classList.add("hidden");
+}
+
+async function sendStart() {
+  const minutes = parseInt(document.getElementById("minutes").value) || 30;
+  let warnBefore = parseInt(document.getElementById("warnBefore").value);
+  if (!warnBefore || warnBefore <= 0) warnBefore = 5;   // 异常兜底
+  const payload = { cmd: "start", minutes, warnBefore };
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
+  setStatus(`已发送：开始倒计时 ${minutes} 分钟（剩 ${warnBefore} 分提醒）`);
+}
+
+async function sendUnlock() {
+  const payload = { cmd: "unlock" };
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
+  setStatus("已发送：解锁 / 解除锁屏");
+}
+
+async function sendApprove() {
+  const payload = { cmd: "approve" };
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
+  document.getElementById("approveCard").classList.add("hidden");
+  setStatus("已批准：临时解锁5分钟");
+}
+
+async function sendReject() {
+  const payload = { cmd: "reject" };
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
+  document.getElementById("approveCard").classList.add("hidden");
+  setStatus("已拒绝本次申请");
+}
+
+// ---- 页面加载：若已保存配对，则自动重连 ----
+window.addEventListener("DOMContentLoaded", () => {
+  const p = loadPair();
+  if (p) {
+    deviceId = p.deviceId;
+    deviceKey = p.deviceKey;
+    document.getElementById("deviceId").value = deviceId;
+    document.getElementById("deviceKey").value = deviceKey;
+    connectAndSubscribe();
+  }
+});
+</script>
+</body>
+</html>
