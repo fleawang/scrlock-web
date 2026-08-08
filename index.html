@@ -91,7 +91,7 @@
 
   <!-- 使用统计 -->
   <div style="margin-top:14px;padding:14px;border:2px solid #10aeff;border-radius:12px;background:#eef8ff;">
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;">📊 锁定使用时长统计</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;">📊 倒计时使用时长统计</div>
     <div style="display:flex;gap:8px;margin-bottom:8px;">
       <button class="btn-pair" style="margin-top:0;flex:1;" onclick="sendStats('day')">今天</button>
       <button class="btn-pair" style="margin-top:0;flex:1;" onclick="sendStats('month')">本月</button>
@@ -333,8 +333,8 @@ function showStats(d) {
   const dur = fmtDur(d.total_seconds || 0);
   box.textContent =
     `📅 区间：${d.period || ""}\n` +
-    `⏱ 锁定总时长：${dur}\n` +
-    `🔢 锁定次数：${d.count || 0} 次`;
+    `⏱ 倒计时总时长：${dur}\n` +
+    `🔢 倒计时次数：${d.count || 0} 次`;
 }
 
 async function sendStats(mode) {
