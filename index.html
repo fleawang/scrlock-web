@@ -88,6 +88,24 @@
   <button class="btn-unlock" onclick="sendUnlock()">解锁 / 解除锁屏</button>
   <button class="btn-exit" onclick="exitPair()">退出配对</button>
   <div class="hint">立即锁屏：无视当前倒计时，马上锁住电脑并清零倒计时设置；倒计时中点击可取消本次倒计时；解锁按钮可远程解除（孩子继续可用）。配对状态会自动保存，重开本网页无需重新输入。</div>
+
+  <!-- 使用统计 -->
+  <div style="margin-top:14px;padding:14px;border:2px solid #10aeff;border-radius:12px;background:#eef8ff;">
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;">📊 锁定使用时长统计</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button class="btn-pair" style="margin-top:0;flex:1;" onclick="sendStats('day')">今天</button>
+      <button class="btn-pair" style="margin-top:0;flex:1;" onclick="sendStats('month')">本月</button>
+      <button class="btn-pair" style="margin-top:0;flex:1;" onclick="sendStats('year')">本年</button>
+    </div>
+    <label style="margin:6px 0 4px;">指定日期（YYYY-MM-DD）</label>
+    <input id="statDate" placeholder="留空=今天" />
+    <button class="btn-pair" style="margin-top:8px;" onclick="sendStats('date')">查询该日</button>
+    <label style="margin:10px 0 4px;">时间段（YYYY-MM-DD，起~止）</label>
+    <input id="statStart" placeholder="起始日期" />
+    <input id="statEnd" placeholder="结束日期（含当天）" style="margin-top:6px;" />
+    <button class="btn-pair" style="margin-top:8px;" onclick="sendStats('range')">统计时间段</button>
+    <div id="statResult" style="margin-top:10px;font-size:14px;color:#1769ff;white-space:pre-line;"></div>
+  </div>
 </div>
 
 <script>
@@ -169,6 +187,7 @@ function connectAndSubscribe() {
     setStatus("已连接，等待状态…");
     client.subscribe(topic("state"), { qos: 1 });
     client.subscribe(requestTopic(), { qos: 1 });
+    client.subscribe(topic("stats"), { qos: 1 });
     savePair();   // 配对成功，持久化
   });
   client.on("error", e => setStatus("连接错误：" + (e && e.message ? e.message : e)));
@@ -192,6 +211,11 @@ function connectAndSubscribe() {
       // 孩子申请临时解锁
       document.getElementById("approveCard").classList.remove("hidden");
       setStatus("孩子发来临时解锁申请");
+    } else if (tp === topic("stats")) {
+      try {
+        const d = JSON.parse(payload.toString());
+        showStats(d);
+      } catch (e) {}
     }
   });
 }
@@ -289,6 +313,44 @@ async function sendReject() {
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
   document.getElementById("approveCard").classList.add("hidden");
   setStatus("已拒绝本次申请");
+}
+
+// ---- 使用统计查询 ----
+function fmtDur(sec) {
+  sec = Math.max(0, sec | 0);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  if (h) return `${h}小时${m}分${s}秒`;
+  if (m) return `${m}分${s}秒`;
+  return `${s}秒`;
+}
+
+function showStats(d) {
+  const box = document.getElementById("statResult");
+  if (d.error) {
+    box.textContent = "查询失败：" + d.error;
+    return;
+  }
+  const dur = fmtDur(d.total_seconds || 0);
+  box.textContent =
+    `📅 区间：${d.period || ""}\n` +
+    `⏱ 锁定总时长：${dur}\n` +
+    `🔢 锁定次数：${d.count || 0} 次`;
+}
+
+async function sendStats(mode) {
+  if (!client) { alert("请先配对连接"); return; }
+  const payload = { cmd: "stats", mode };
+  if (mode === "date") {
+    const v = document.getElementById("statDate").value.trim();
+    if (v) payload.date = v;
+  } else if (mode === "range") {
+    payload.start = document.getElementById("statStart").value.trim();
+    payload.end = document.getElementById("statEnd").value.trim();
+    if (!payload.start || !payload.end) { alert("请填写起止日期"); return; }
+  }
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("stats"), JSON.stringify(payload), { qos: 1 });
+  setStatus("已发送：统计查询（" + mode + "）");
 }
 
 // ---- 页面加载：若已保存配对，则自动重连 ----
