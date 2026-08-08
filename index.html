@@ -36,6 +36,7 @@
   }
   .btn-start { background: #07c160; }
   .btn-unlock { background: #fa5151; }
+  .btn-lock { background: #3a3a3a; }
   .btn-exit { background: #999; }
   .btn-pair { background: #10aeff; }
   .btn-scan { background: #ff9f0a; }
@@ -83,9 +84,10 @@
   <input id="warnBefore" type="number" value="5" min="1" max="600" />
 
   <button class="btn-start" onclick="sendStart()">开始倒计时</button>
+  <button class="btn-lock" onclick="sendLock()">🔒 立即锁屏</button>
   <button class="btn-unlock" onclick="sendUnlock()">解锁 / 解除锁屏</button>
   <button class="btn-exit" onclick="exitPair()">退出配对</button>
-  <div class="hint">解锁按钮：锁屏时点击可远程解除（孩子继续可用）；倒计时中点击可取消本次倒计时。配对状态会自动保存，重开本网页无需重新输入。</div>
+  <div class="hint">立即锁屏：无视当前倒计时，马上锁住电脑并清零倒计时设置；倒计时中点击可取消本次倒计时；解锁按钮可远程解除（孩子继续可用）。配对状态会自动保存，重开本网页无需重新输入。</div>
 </div>
 
 <script>
@@ -175,9 +177,15 @@ function connectAndSubscribe() {
     if (tp === topic("state")) {
       try {
         const d = JSON.parse(payload.toString());
-        lastRemaining = d.remaining || 0;
-        document.getElementById("timer").textContent = fmt(lastRemaining);
-        const map = { idle: "空闲", counting: "倒计时中", warned: "提醒中", locked: "已锁屏", unlock: "已解除" };
+        const map = { idle: "空闲", counting: "倒计时中", warned: "提醒中", temp_unlock: "临时解锁中", locked: "已锁屏", unlock: "已解除" };
+        // 锁屏 / 空闲：倒计时设置清零
+        if (d.state === "locked" || d.state === "idle") {
+          lastRemaining = 0;
+          document.getElementById("timer").textContent = "--:--";
+        } else {
+          lastRemaining = d.remaining || 0;
+          document.getElementById("timer").textContent = fmt(lastRemaining);
+        }
         setStatus("状态：" + (map[d.state] || d.state));
       } catch (e) {}
     } else if (tp === requestTopic()) {
@@ -257,6 +265,14 @@ async function sendUnlock() {
   payload.sig = await hmacSign(deviceKey, payload);
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
   setStatus("已发送：解锁 / 解除锁屏");
+}
+
+async function sendLock() {
+  if (!confirm("确定立即锁屏？当前倒计时设置将被清零。")) return;
+  const payload = { cmd: "lock" };
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
+  setStatus("已发送：立即锁屏");
 }
 
 async function sendApprove() {
