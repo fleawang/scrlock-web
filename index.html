@@ -170,6 +170,8 @@ function connectAndSubscribe() {
     client.subscribe(topic("state"), { qos: 1 });
     client.subscribe(requestTopic(), { qos: 1 });
     savePair();   // 配对成功，持久化
+    // 主动查询最新状态：家长若晚开网页，可补看到"孩子已申请、等待审批"等错过的状态
+    queryNow();
   });
   client.on("error", e => setStatus("连接错误：" + (e && e.message ? e.message : e)));
   client.on("offline", () => setStatus("已断开，重连中…"));
@@ -187,9 +189,18 @@ function connectAndSubscribe() {
           document.getElementById("timer").textContent = fmt(lastRemaining);
         }
         setStatus("状态：" + (map[d.state] || d.state));
+        // 待审批申请：即使家长刚才没开网页，只要收到这条 state 也能补看到
+        // （孩子申请后 Windows 端会在每条 state 持续带 pending_request:true，
+        //  且网页连接后会主动发 query 命令拉取最新状态）。
+        if (d.pending_request) {
+          document.getElementById("approveCard").classList.remove("hidden");
+          setStatus("孩子发来临时解锁申请");
+        } else {
+          document.getElementById("approveCard").classList.add("hidden");
+        }
       } catch (e) {}
     } else if (tp === requestTopic()) {
-      // 孩子申请临时解锁
+      // 孩子申请临时解锁（实时收到的情况，同样显示审批卡片）
       document.getElementById("approveCard").classList.remove("hidden");
       setStatus("孩子发来临时解锁申请");
     }
@@ -288,6 +299,15 @@ async function sendApprove() {
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
   document.getElementById("approveCard").classList.add("hidden");
   setStatus("已批准：临时解锁5分钟");
+}
+
+// 主动查询当前最新状态（网页打开/重连时调用），让迟到打开的网页也能补看到
+// "孩子已申请、等待审批"等因为当时没订阅而错过的状态。
+async function queryNow() {
+  if (!client) return;
+  const payload = { cmd: "query" };
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
 }
 
 async function sendReject() {
