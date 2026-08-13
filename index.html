@@ -78,7 +78,7 @@
   </div>
 
   <label>设置倒计时（分钟）</label>
-  <input id="minutes" type="number" value="30" min="1" max="600" />
+  <input id="minutes" type="number" value="15" min="1" max="600" />
 
   <label>提前提醒（剩余分钟时开始出现红字提示）</label>
   <input id="warnBefore" type="number" value="5" min="1" max="600" />
@@ -262,7 +262,7 @@ function stopScan() {
 }
 
 async function sendStart() {
-  const minutes = parseInt(document.getElementById("minutes").value) || 30;
+  const minutes = parseInt(document.getElementById("minutes").value) || 15;
   let warnBefore = parseInt(document.getElementById("warnBefore").value);
   if (!warnBefore || warnBefore <= 0) warnBefore = 5;   // 异常兜底
   const payload = { cmd: "start", minutes, warnBefore };
