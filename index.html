@@ -40,6 +40,9 @@
   .btn-exit { background: #999; }
   .btn-pair { background: #10aeff; }
   .btn-scan { background: #ff9f0a; }
+  .btn-request { background: #1769ff; }
+  .btn-reset { background: #8e44ad; }
+  .btn.disabled, .btn:disabled { background: #c7c7c7 !important; cursor: not-allowed; opacity: .7; }
   .hint { font-size: 12px; color: #999; margin-top: 8px; line-height: 1.5; }
   .ring { display: block; margin: 0 auto; }
   #pairCard { transition: opacity .3s; }
@@ -69,6 +72,12 @@
   <div class="status" id="statusText">状态：未连接</div>
   <div class="timer" id="timer">--:--</div>
 
+  <!-- 答题获得的游戏时间 -->
+  <div id="gameTimeBox" style="margin-top:12px;padding:12px 14px;border:2px dashed #2a9d8f;border-radius:12px;background:#f1faf8;">
+    <div style="font-size:15px;font-weight:700;">🎮 游戏时间：<span id="gameTimeVal">0</span> 分钟</div>
+    <div class="hint" id="gameTimeHint">孩子通过电脑答题获得，可在电脑端「用游戏时间解锁」消耗；不会被锁屏/解锁清除。</div>
+  </div>
+
   <!-- 审批：孩子申请临时解锁 -->
   <div class="hidden" id="approveCard" style="margin-top:14px;padding:14px;border:2px solid #ff9f0a;border-radius:12px;background:#fff7ec;">
     <div style="font-size:16px;font-weight:700;margin-bottom:6px;">👦 孩子申请临时解锁（5分钟）</div>
@@ -86,8 +95,35 @@
   <button class="btn-start" onclick="sendStart()">开始倒计时</button>
   <button class="btn-lock" onclick="sendLock()">🔒 立即锁屏</button>
   <button class="btn-unlock" onclick="sendUnlock()">解锁 / 解除锁屏</button>
+  <button class="btn-request" id="reqBtn" onclick="sendRequest()">📨 申请临时解锁（孩子手机端）</button>
+  <button class="btn-reset" id="resetBtn" onclick="sendResetChallenge()">🔄 重置游戏次数（孩子可再次挑战）</button>
   <button class="btn-exit" onclick="exitPair()">退出配对</button>
-  <div class="hint">立即锁屏：无视当前倒计时，马上锁住电脑并清零倒计时设置；倒计时中点击可取消本次倒计时；解锁按钮可远程解除（孩子继续可用）。配对状态会自动保存，重开本网页无需重新输入。</div>
+  <div class="hint">立即锁屏：无视当前倒计时，马上锁住电脑并清零倒计时设置；倒计时中点击可取消本次倒计时；解锁按钮可远程解除（孩子继续可用）。配对状态会自动保存，重开本网页无需重新输入。⚠️ 若「游戏时间」不为 0，临时解锁申请将停用，请让孩子在电脑端用游戏时间解锁。</div>
+
+<script>
+// 手机端（家长）代孩子发起临时解锁申请。若答题游戏时间 > 0，则优先用游戏时间
+// 解锁，不允许走临时解锁申请，并给出提示（由 updateGameTime 控制按钮禁用）。
+async function sendRequest() {
+  const reqBtn = document.getElementById("reqBtn");
+  if (reqBtn && reqBtn.disabled) return;  // 游戏时间 > 0，已停用
+  const payload = { cmd: "request" };
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
+  setStatus("已发送：申请临时解锁（待电脑端孩子确认/家长审批）");
+  // 注：游戏时间不会因锁屏/解锁被清除；游戏时间为 0 时该申请可用，否则被停用。
+}
+
+// 家长（手机端）重置本小时游戏挑战次数：孩子可再次挑战，游戏时间不受影响。
+async function sendResetChallenge() {
+  if (!confirm("确定重置本小时游戏挑战次数吗？\n孩子将可以再次进行答题挑战，游戏时间不变。")) {
+    return;
+  }
+  const payload = { cmd: "reset_challenge" };
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
+  setStatus("已发送：重置游戏次数（孩子可再次挑战，游戏时间不变）");
+}
+</script>
 </div>
 
 <script>
@@ -118,6 +154,31 @@ function fmt(sec) {
 }
 
 function setStatus(t) { document.getElementById("statusText").textContent = t; }
+
+// 同步答题获得的游戏时间（分钟）。游戏时间 > 0 时，临时解锁申请应优先用游戏时间
+// 解锁，而不是走家长审批流程，因此禁用手机端「申请临时解锁」入口并给出提示。
+function updateGameTime(gt) {
+  const val = document.getElementById("gameTimeVal");
+  const box = document.getElementById("gameTimeBox");
+  const hint = document.getElementById("gameTimeHint");
+  const reqBtn = document.getElementById("reqBtn");
+  gt = Math.max(0, gt | 0);
+  val.textContent = gt;
+  if (!reqBtn) return;  // 当前视图不含申请按钮（异常兜底）
+  if (gt > 0) {
+    // 优先使用游戏时间解锁：禁用临时解锁申请，提示改用电脑端「用游戏时间解锁」
+    reqBtn.disabled = true;
+    reqBtn.classList.add("disabled");
+    hint.textContent =
+      `当前有 ${gt} 分钟游戏时间，请让孩子在电脑端点「用游戏时间解锁」优先消耗（临时解锁申请已停用）。`;
+    box.style.borderColor = "#2a9d8f";
+  } else {
+    reqBtn.disabled = false;
+    reqBtn.classList.remove("disabled");
+    hint.textContent = "孩子通过电脑答题获得，可在电脑端「用游戏时间解锁」消耗；不会被锁屏/解锁清除。";
+    box.style.borderColor = "#2a9d8f";
+  }
+}
 
 // ---- 配对持久化 ----
 function savePair() {
@@ -180,7 +241,8 @@ function connectAndSubscribe() {
       try {
         const d = JSON.parse(payload.toString());
         const map = { idle: "空闲", counting: "倒计时中", warned: "提醒中", temp_unlock: "临时解锁中", locked: "已锁屏", unlock: "已解除" };
-        // 锁屏 / 空闲：倒计时设置清零
+        // 注：锁屏/解锁不会清除答题获得的游戏时间，因此这里不再对 locked/idle
+        // 做清空倒计时的乐观处理（仅按回报展示剩余时间）。
         if (d.state === "locked" || d.state === "idle") {
           lastRemaining = 0;
           document.getElementById("timer").textContent = "--:--";
@@ -189,6 +251,9 @@ function connectAndSubscribe() {
           document.getElementById("timer").textContent = fmt(lastRemaining);
         }
         setStatus("状态：" + (map[d.state] || d.state));
+        // 同步答题获得的游戏时间（分钟）。游戏时间不为 0 时，临时解锁申请应优先
+        // 用游戏时间解锁，而不是走家长审批流程。
+        updateGameTime(d.game_time || 0);
         // 待审批申请：即使家长刚才没开网页，只要收到这条 state 也能补看到
         // （孩子申请后 Windows 端会在每条 state 持续带 pending_request:true，
         //  且网页连接后会主动发 query 命令拉取最新状态）。
@@ -197,6 +262,10 @@ function connectAndSubscribe() {
           setStatus("孩子发来临时解锁申请");
         } else {
           document.getElementById("approveCard").classList.add("hidden");
+        }
+        // 临时解锁申请被拒绝（例如游戏时间不为 0，要求优先用游戏时间解锁）
+        if (d.request_rejected) {
+          setStatus("⚠️ " + (d.reject_reason || "临时解锁申请被拒绝"));
         }
       } catch (e) {}
     } else if (tp === requestTopic()) {
@@ -276,10 +345,8 @@ async function sendUnlock() {
   payload.sig = await hmacSign(deviceKey, payload);
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
   setStatus("已发送：解锁 / 解除锁屏");
-  // 乐观更新：立即清空倒计时与状态，避免电脑回报前仍显示"临时解锁中"倒计时
+  // 注：解锁命令不会清除答题获得的游戏时间（游戏时间只在「用游戏时间解锁」时消耗）。
   document.getElementById("approveCard").classList.add("hidden");
-  document.getElementById("timer").textContent = "--:--";
-  setStatus("状态：已解除");
 }
 
 async function sendLock() {
@@ -288,9 +355,6 @@ async function sendLock() {
   payload.sig = await hmacSign(deviceKey, payload);
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
   setStatus("已发送：立即锁屏");
-  // 乐观更新：立即显示已锁屏、清空倒计时
-  document.getElementById("timer").textContent = "--:--";
-  setStatus("状态：已锁屏");
 }
 
 async function sendApprove() {
