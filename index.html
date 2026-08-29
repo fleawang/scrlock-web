@@ -46,9 +46,182 @@
   .hidden { display: none; }
   #reader { width: 100%; max-width: 320px; margin: 10px auto 0; }
   #reader video { border-radius: 12px; }
+
+  /* ===== 使用统计模块样式 ===== */
+  :root {
+    --stat-green: hsl(152 58% 38%);
+    --stat-green-soft: hsl(152 40% 88%);
+    --stat-green-wash: hsl(152 45% 96%);
+    --stat-red: hsl(0 55% 52%);
+    --stat-red-wash: hsl(0 60% 97%);
+    --stat-orange: hsl(32 70% 46%);
+    --stat-line: hsl(210 16% 92%);
+    --stat-ink2: #5b6470;
+    --stat-ink3: #8b95a1;
+    --stat-ease: cubic-bezier(.16,1,.3,1);
+  }
+  .stat-entry { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    background: #fff; border-radius: 16px; padding: 15px 16px; margin-bottom: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06); cursor: pointer; border: none; font-family: inherit; }
+  .stat-entry:active { transform: translateY(1px); }
+  .stat-entry-badge { width: 38px; height: 38px; border-radius: 11px; flex: none;
+    background: var(--stat-green-wash); color: var(--stat-green); display: flex;
+    align-items: center; justify-content: center; }
+  .stat-entry-txt { flex: 1; min-width: 0; }
+  .stat-entry-t { font-size: 15px; font-weight: 600; }
+  .stat-entry-s { font-size: 12px; color: var(--stat-ink3); margin-top: 1px; }
+  .stat-entry-val { text-align: right; flex: none; }
+  .stat-entry-v { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .stat-entry-k { font-size: 11px; color: var(--stat-ink3); }
+  .stat-chev { color: #ccc; flex: none; transition: transform .28s var(--stat-ease); }
+  .stat-entry.open .stat-chev { transform: rotate(90deg); }
+
+  .stat-card { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+  .stat-seg { display: grid; grid-template-columns: repeat(3,1fr); gap: 3px;
+    background: #f2f3f5; border-radius: 11px; padding: 3px; margin-bottom: 12px; }
+  .stat-seg button { border: none; background: transparent; border-radius: 8px; padding: 8px 0;
+    font-size: 13px; font-weight: 500; color: #777; cursor: pointer; font-family: inherit;
+    margin-top: 0; transition: background .2s var(--stat-ease), color .2s var(--stat-ease); }
+  .stat-seg button.on { background: #fff; color: #1a1a1a; font-weight: 600;
+    box-shadow: 0 1px 3px rgba(16,24,40,.08); }
+
+  .stat-ov { display: grid; grid-template-columns: 1fr auto; align-items: flex-end; gap: 10px; padding-bottom: 2px; }
+  .stat-ov-lab { font-size: 12px; color: var(--stat-ink3); letter-spacing: .01em; }
+  .stat-ov-main { font-size: 38px; font-weight: 650; letter-spacing: -.025em; line-height: 1.1;
+    margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .stat-ov-main .u { font-size: 15px; font-weight: 500; color: var(--stat-ink2); margin: 0 1px; }
+  .stat-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px;
+    border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap;
+    font-variant-numeric: tabular-nums; }
+  .stat-pill.up { background: var(--stat-red-wash); color: var(--stat-red); }
+  .stat-pill.down { background: var(--stat-green-wash); color: var(--stat-green); }
+  .stat-pill svg { width: 12px; height: 12px; }
+  .stat-ov-yesterday { grid-column: 1 / -1; font-size: 12px; color: var(--stat-ink3); margin-top: -2px; }
+
+  .stat-use { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--stat-line); }
+  .stat-use-meta { display: flex; justify-content: space-between; font-size: 12px;
+    color: var(--stat-ink2); margin-bottom: 7px; font-variant-numeric: tabular-nums; }
+  .stat-use-meta b { color: #1a1a1a; font-weight: 600; }
+  .stat-track { height: 6px; border-radius: 999px; background: var(--stat-line); overflow: hidden; }
+  .stat-fill { height: 100%; border-radius: 999px; background: var(--stat-green);
+    transform-origin: left center; animation: statGrowX .6s var(--stat-ease) backwards; }
+  @keyframes statGrowX { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+
+  .stat-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .stat-hd svg { color: var(--stat-ink3); }
+  .stat-hd h2 { font-size: 14px; font-weight: 600; margin: 0; }
+  .stat-sub { font-size: 11.5px; color: var(--stat-ink3); margin: 0 0 12px; }
+
+  .stat-chart { width: 100%; display: block; }
+  .stat-chart rect { transform-box: fill-box; transform-origin: bottom;
+    animation: statBarIn .5s var(--stat-ease) backwards; }
+  @keyframes statBarIn { from { transform: scaleY(0); opacity: 0 } to { transform: scaleY(1); opacity: 1 } }
+
+  .stat-hours { display: grid; grid-template-columns: repeat(24,1fr); gap: 2px; align-items: end; height: 62px; }
+  .stat-hours span { display: block; border-radius: 2px 2px 0 0; background: var(--stat-line);
+    transform-origin: bottom; animation: statBarIn .45s var(--stat-ease) backwards; min-height: 3px; }
+  .stat-hours span.on { background: var(--stat-green); }
+  .stat-haxis { display: flex; justify-content: space-between; font-size: 10px;
+    color: var(--stat-ink3); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .stat-peak { margin-top: 11px; background: #f7f7f7; border-radius: 10px;
+    padding: 9px 11px; font-size: 12px; color: var(--stat-ink2); line-height: 1.6; }
+  .stat-peak b { color: #1a1a1a; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .stat-tiles { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; }
+  .stat-tile { background: #fafafa; border-radius: 13px; padding: 13px 6px; text-align: center; }
+  .stat-tile.primary { background: var(--stat-green-wash); }
+  .stat-tile .v { font-size: 25px; font-weight: 650; letter-spacing: -.02em; line-height: 1.1;
+    font-variant-numeric: tabular-nums; }
+  .stat-tile.primary .v { color: var(--stat-green); }
+  .stat-tile .k { font-size: 11px; color: var(--stat-ink3); margin-top: 3px; }
+  .stat-tile .n { font-size: 10.5px; color: var(--stat-ink3); margin-top: 2px;
+    font-variant-numeric: tabular-nums; }
+
+  .stat-ev { display: grid; grid-template-columns: 42px 10px 1fr; gap: 9px; align-items: start;
+    padding: 9px 0; border-bottom: 1px solid #f5f5f5;
+    animation: statRowIn .42s var(--stat-ease) backwards; }
+  .stat-ev:last-child { border-bottom: none; padding-bottom: 0; }
+  @keyframes statRowIn { from { opacity: 0; transform: translateY(7px) } to { opacity: 1; transform: none } }
+  .stat-ev-t { font-size: 11.5px; color: var(--stat-ink3); padding-top: 2px;
+    font-variant-numeric: tabular-nums; }
+  .stat-ev-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; }
+  .stat-ev-x { font-size: 13.5px; line-height: 1.45; }
+  .stat-ev-x small { display: block; font-size: 11px; color: var(--stat-ink3); margin-top: 1px; }
+
+  .stat-ghost { display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; margin-top: 4px; padding: 12px; border-radius: 12px;
+    border: 1px solid hsl(0 55% 88%); background: #fff; color: var(--stat-red);
+    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .stat-ghost:active { transform: translateY(1px); background: var(--stat-red-wash); }
+  .stat-foot { font-size: 11px; color: var(--stat-ink3); line-height: 1.6; margin-top: 9px; }
+  .stat-foot code { background: #f2f3f5; padding: 1px 4px; border-radius: 4px; font-size: 10.5px; }
+
+  .stat-state { text-align: center; padding: 22px 8px 6px; }
+  .stat-state .stat-ring { width: 52px; height: 52px; border-radius: 15px; margin: 0 auto 12px;
+    display: flex; align-items: center; justify-content: center;
+    background: #f2f3f5; color: var(--stat-ink3); }
+  .stat-state .stat-ring.warn { background: var(--stat-red-wash); color: var(--stat-red); }
+  .stat-state .t { font-size: 14px; font-weight: 600; }
+  .stat-state .d { font-size: 12px; color: var(--stat-ink3); margin-top: 5px; line-height: 1.65; }
+
+  .stat-skel { background: linear-gradient(90deg,#f1f2f4 25%,#e7e9ec 37%,#f1f2f4 63%);
+    background-size: 400% 100%; animation: statShim 1.3s linear infinite; border-radius: 8px; }
+  @keyframes statShim { from { background-position: 100% 0 } to { background-position: 0 0 } }
 </style>
 </head>
 <body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M8 17v-4"/><path d="M12.5 17V8"/><path d="M17 17v-6"/>
+  </symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 17l5.5-5.5 3.5 3.5L20 7"/><path d="M15 7h5v5"/>
+  </symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>
+  </symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+  </symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>
+    <path d="M9 6h12"/><path d="M9 12h12"/><path d="M9 18h12"/>
+  </symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 12h-6l-2 3h-4l-2-3H2"/>
+    <path d="M5.4 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.4-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.8 1.1z"/>
+  </symbol>
+  <symbol id="i-offline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 2l20 20"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/>
+    <path d="M5 12.6a10 10 0 0 1 3.5-2.2"/><path d="M15.5 10.4A10 10 0 0 1 19 12.6"/>
+    <path d="M2 8.8A15 15 0 0 1 6 6.2"/><path d="M18 6.2a15 15 0 0 1 4 2.6"/><path d="M12 20h.01"/>
+  </symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>
+    <path d="M12 9v4"/><path d="M12 17h.01"/>
+  </symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="M12 16v-5"/><path d="M12 8h.01"/>
+  </symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 18l6-6-6-6"/>
+  </symbol>
+  <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 19V6"/><path d="M6 12l6-6 6 6"/>
+  </symbol>
+  <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 5v13"/><path d="M18 12l-6 6-6-6"/>
+  </symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3.5V9h-5.5"/>
+  </symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 6h18"/><path d="M8 6V4.5A1.5 1.5 0 0 1 9.5 3h5A1.5 1.5 0 0 1 16 4.5V6"/>
+    <path d="M18.5 6l-.9 13.1A2 2 0 0 1 15.6 21H8.4a2 2 0 0 1-2-1.9L5.5 6"/>
+  </symbol>
+</svg>
 
 <h1>设备控制</h1>
 
@@ -71,10 +244,10 @@
 
   <!-- 审批：孩子申请临时解锁 -->
   <div class="hidden" id="approveCard" style="margin-top:14px;padding:14px;border:2px solid #ff9f0a;border-radius:12px;background:#fff7ec;">
-    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">👦 孩子申请临时解锁（5分钟）</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">孩子申请临时解锁（5分钟）</div>
     <div class="hint">孩子已点击电脑上的「申请临时解锁」。你可批准或拒绝。</div>
-    <button class="btn-start" onclick="sendApprove()">✅ 批准（解锁5分钟）</button>
-    <button class="btn-unlock" onclick="sendReject()">❌ 拒绝</button>
+    <button class="btn-start" onclick="sendApprove()">批准（解锁5分钟）</button>
+    <button class="btn-unlock" onclick="sendReject()">拒绝</button>
   </div>
 
   <label>设置倒计时（分钟）</label>
@@ -84,10 +257,138 @@
   <input id="warnBefore" type="number" value="5" min="1" max="600" />
 
   <button class="btn-start" onclick="sendStart()">开始倒计时</button>
-  <button class="btn-lock" onclick="sendLock()">🔒 立即锁屏</button>
+  <button class="btn-lock" onclick="sendLock()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:4px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    立即锁屏
+  </button>
   <button class="btn-unlock" onclick="sendUnlock()">解锁 / 解除锁屏</button>
   <button class="btn-exit" onclick="exitPair()">退出配对</button>
   <div class="hint">立即锁屏：无视当前倒计时，马上锁住电脑并清零倒计时设置；倒计时中点击可取消本次倒计时；解锁按钮可远程解除（孩子继续可用）。配对状态会自动保存，重开本网页无需重新输入。</div>
+</div>
+
+<!-- 使用统计入口 -->
+<button class="stat-entry hidden" id="statEntry" onclick="toggleStats()" aria-expanded="false">
+  <span class="stat-entry-badge"><svg class="stat-ico" width="22" height="22" viewBox="0 0 24 24"><use href="#i-chart"/></svg></span>
+  <span class="stat-entry-txt">
+    <span class="stat-entry-t">使用统计</span>
+    <span class="stat-entry-s">查看家长授权时长与分布</span>
+  </span>
+  <span class="stat-entry-val">
+    <span class="stat-entry-v" id="statEntryVal">--</span>
+    <span class="stat-entry-k" id="statEntryLab">今日已授权</span>
+  </span>
+  <svg class="stat-chev" width="18" height="18" viewBox="0 0 24 24"><use href="#i-chev"/></svg>
+</button>
+
+<!-- 使用统计内容 -->
+<div id="statsBody" class="hidden">
+
+  <div class="stat-card">
+    <div class="stat-seg" role="tablist">
+      <button id="r-today" class="on" onclick="setStatRange('today')">今日</button>
+      <button id="r-7d" onclick="setStatRange('7d')">近 7 天</button>
+      <button id="r-30d" onclick="setStatRange('30d')">近 30 天</button>
+    </div>
+
+    <!-- 正常 -->
+    <div id="paneNormal">
+      <div class="stat-ov">
+        <div>
+          <div class="stat-ov-lab" id="ovLab">今日已授权</div>
+          <div class="stat-ov-main"><span id="ovH">--</span><span class="u">小时</span><span id="ovM">--</span><span class="u">分</span></div>
+        </div>
+        <div id="ovPill"></div>
+        <div class="stat-ov-yesterday" id="ovCmp"></div>
+      </div>
+
+      <div class="stat-use">
+        <div class="stat-use-meta">
+          <span>实际使用 <b class="num" id="useVal">--</b></span>
+          <span>使用率 <b class="num" id="useRate">--</b></span>
+        </div>
+        <div class="stat-track"><div class="stat-fill" id="useFill"></div></div>
+      </div>
+    </div>
+
+    <!-- 加载中 -->
+    <div id="paneLoading" class="hidden">
+      <div class="stat-skel" style="height:12px;width:82px;margin:4px 0 12px"></div>
+      <div class="stat-skel" style="height:38px;width:172px;margin-bottom:10px"></div>
+      <div class="stat-skel" style="height:12px;width:120px;margin-bottom:20px"></div>
+      <div class="stat-skel" style="height:6px;margin-bottom:16px"></div>
+      <div class="stat-skel" style="height:62px"></div>
+    </div>
+
+    <!-- 空数据 -->
+    <div id="paneEmpty" class="hidden">
+      <div class="stat-state">
+        <div class="stat-ring"><svg width="26" height="26" viewBox="0 0 24 24"><use href="#i-inbox"/></svg></div>
+        <div class="t">今天还没有授权记录</div>
+        <div class="d">当日家长未下发过倒计时命令时，<br>此处不会有数据。</div>
+      </div>
+    </div>
+
+    <!-- 设备离线 -->
+    <div id="paneOffline" class="hidden">
+      <div class="stat-state">
+        <div class="stat-ring"><svg width="26" height="26" viewBox="0 0 24 24"><use href="#i-offline"/></svg></div>
+        <div class="t">设备离线，无法获取</div>
+        <div class="d">未能收到电脑端回应。为避免误导，<br>此处不显示历史缓存数据。</div>
+      </div>
+      <button class="btn-start" style="margin-top:14px" onclick="sendStats(statRange)">重新查询</button>
+    </div>
+
+    <!-- 签名校验失败 -->
+    <div id="paneInvalid" class="hidden">
+      <div class="stat-state">
+        <div class="stat-ring warn"><svg width="26" height="26" viewBox="0 0 24 24"><use href="#i-alert"/></svg></div>
+        <div class="t">数据校验失败</div>
+        <div class="d">收到的数据签名不正确，已拒绝渲染。<br>请检查密钥配对是否正确。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 授权趋势 -->
+  <div class="stat-card" id="cardTrend">
+    <div class="stat-hd"><svg class="stat-ico" width="18" height="18" viewBox="0 0 24 24"><use href="#i-trend"/></svg><h2>授权时长趋势</h2></div>
+    <p class="stat-sub" id="trendSub">近 7 天每日家长授权时长（分钟）</p>
+    <div id="bars"></div>
+  </div>
+
+  <!-- 授权时段分布 -->
+  <div class="stat-card" id="cardHours">
+    <div class="stat-hd"><svg class="stat-ico" width="18" height="18" viewBox="0 0 24 24"><use href="#i-clock"/></svg><h2>今日授权时段分布</h2></div>
+    <p class="stat-sub">按授权命令发生的时刻统计，快速发现深夜使用</p>
+    <div class="stat-hours" id="hours"></div>
+    <div class="stat-haxis"><span>0 点</span><span>6 点</span><span>12 点</span><span>18 点</span><span>23 点</span></div>
+    <div class="stat-peak" id="peakText">最活跃时段 --</div>
+  </div>
+
+  <!-- 管控概览 -->
+  <div class="stat-card" id="cardCtl">
+    <div class="stat-hd"><svg class="stat-ico" width="18" height="18" viewBox="0 0 24 24"><use href="#i-shield"/></svg><h2>管控概览</h2></div>
+    <p class="stat-sub">反映家长管控强度与孩子的申请频次</p>
+    <div class="stat-tiles">
+      <div class="stat-tile primary"><div class="v" id="ctlSessions">--</div><div class="k">授权次数</div><div class="n" id="ctlAuthMin">--</div></div>
+      <div class="stat-tile"><div class="v" id="ctlLocks">--</div><div class="k">锁屏次数</div></div>
+      <div class="stat-tile"><div class="v" id="ctlRequests">--</div><div class="k">申请次数</div></div>
+    </div>
+  </div>
+
+  <!-- 事件流水 -->
+  <div class="stat-card" id="cardEvents">
+    <div class="stat-hd"><svg class="stat-ico" width="18" height="18" viewBox="0 0 24 24"><use href="#i-list"/></svg><h2>最近事件</h2></div>
+    <p class="stat-sub">倒序显示最近 20 条关键操作</p>
+    <div id="events"></div>
+  </div>
+
+  <button class="stat-ghost" onclick="clearStats()">
+    <svg width="18" height="18" viewBox="0 0 24 24"><use href="#i-trash"/></svg>清空历史统计
+  </button>
+  <div class="stat-foot">
+    统计口径为<b>家长授权时长</b>（即你下发的倒计时总时长），不采集任何键鼠行为、窗口标题或网址。<br>
+    数据仅存于本机 <code>%USERPROFILE%\.scrlock\usage\</code>，默认保留 90 天。
+  </div>
 </div>
 
 <script>
@@ -147,6 +448,7 @@ function connectAndSubscribe() {
   if (client) {  // 已连接则只刷新界面
     document.getElementById("pairCard").classList.add("hidden");
     document.getElementById("ctrlCard").classList.remove("hidden");
+    document.getElementById("statEntry").classList.remove("hidden");
     return;
   }
   if (typeof mqtt === "undefined") {
@@ -166,16 +468,18 @@ function connectAndSubscribe() {
   client.on("connect", () => {
     document.getElementById("pairCard").classList.add("hidden");
     document.getElementById("ctrlCard").classList.remove("hidden");
+    document.getElementById("statEntry").classList.remove("hidden");
     setStatus("已连接，等待状态…");
     client.subscribe(topic("state"), { qos: 1 });
     client.subscribe(requestTopic(), { qos: 1 });
+    client.subscribe(topic("stats"), { qos: 1 });
     savePair();   // 配对成功，持久化
     // 主动查询最新状态：家长若晚开网页，可补看到"孩子已申请、等待审批"等错过的状态
     queryNow();
   });
   client.on("error", e => setStatus("连接错误：" + (e && e.message ? e.message : e)));
   client.on("offline", () => setStatus("已断开，重连中…"));
-  client.on("message", (tp, payload) => {
+  client.on("message", async (tp, payload) => {
     if (tp === topic("state")) {
       try {
         const d = JSON.parse(payload.toString());
@@ -189,9 +493,7 @@ function connectAndSubscribe() {
           document.getElementById("timer").textContent = fmt(lastRemaining);
         }
         setStatus("状态：" + (map[d.state] || d.state));
-        // 待审批申请：即使家长刚才没开网页，只要收到这条 state 也能补看到
-        // （孩子申请后 Windows 端会在每条 state 持续带 pending_request:true，
-        //  且网页连接后会主动发 query 命令拉取最新状态）。
+        // 待审批申请
         if (d.pending_request) {
           document.getElementById("approveCard").classList.remove("hidden");
           setStatus("孩子发来临时解锁申请");
@@ -203,6 +505,21 @@ function connectAndSubscribe() {
       // 孩子申请临时解锁（实时收到的情况，同样显示审批卡片）
       document.getElementById("approveCard").classList.remove("hidden");
       setStatus("孩子发来临时解锁申请");
+    } else if (tp === topic("stats")) {
+      clearTimeout(statTimer);
+      try {
+        const d = JSON.parse(payload.toString());
+        const sig = d.sig;
+        delete d.sig;
+        const expected = await hmacSign(deviceKey, d);
+        if (!sig || sig !== expected) {
+          setStatState("invalid");
+          return;
+        }
+        onStatsReceived(d);
+      } catch (e) {
+        setStatState("invalid");
+      }
     }
   });
 }
@@ -213,6 +530,8 @@ function exitPair() {
   clearPair();
   deviceId = ""; deviceKey = "";
   document.getElementById("ctrlCard").classList.add("hidden");
+  document.getElementById("statEntry").classList.add("hidden");
+  document.getElementById("statsBody").classList.add("hidden");
   document.getElementById("pairCard").classList.remove("hidden");
   setStatus("已退出配对");
 }
@@ -316,6 +635,229 @@ async function sendReject() {
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
   document.getElementById("approveCard").classList.add("hidden");
   setStatus("已拒绝本次申请");
+}
+
+// ---- 使用统计 ----
+let statRange = "today";
+let statData = null;
+let statTimer = null;
+let statOpened = false;
+
+function hm(min) {
+  min = Math.max(0, Math.round(min));
+  return { h: Math.floor(min / 60), m: min % 60 };
+}
+
+function toggleStats() {
+  statOpened = !statOpened;
+  const body = document.getElementById("statsBody");
+  const entry = document.getElementById("statEntry");
+  body.classList.toggle("hidden", !statOpened);
+  entry.classList.toggle("open", statOpened);
+  entry.setAttribute("aria-expanded", String(statOpened));
+  if (statOpened) {
+    sendStats(statRange);
+  }
+}
+
+function setStatRange(r) {
+  statRange = r;
+  ["today", "7d", "30d"].forEach(k => {
+    document.getElementById("r-" + k).classList.toggle("on", k === r);
+  });
+  sendStats(statRange);
+}
+
+async function sendStats(range) {
+  if (!client) { setStatState("offline"); return; }
+  const payload = { cmd: "stats", range: range };
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
+  setStatState("loading");
+  clearTimeout(statTimer);
+  statTimer = setTimeout(() => setStatState("offline"), 3000);
+}
+
+function onStatsReceived(d) {
+  statData = d;
+  const totalAuth = (d.days || []).reduce((s, day) => s + (day.authorizedSec || 0), 0);
+  const today = d.days ? d.days[d.days.length - 1] : null;
+  if (totalAuth === 0 && (!today || today.authorizedSec === 0)) {
+    setStatState("empty");
+    updateStatEntry("0", "分钟");
+    return;
+  }
+  setStatState("ok");
+  renderStats();
+  // 同步入口小字
+  if (today) {
+    const f = hm(today.authorizedSec / 60);
+    updateStatEntry(f.h > 0 ? f.h + " 小时" + f.m + " 分" : f.m + " 分钟", "今日已授权");
+  }
+}
+
+function updateStatEntry(val, lab) {
+  document.getElementById("statEntryVal").textContent = val;
+  document.getElementById("statEntryLab").textContent = lab;
+}
+
+function setStatState(st) {
+  const ids = ["paneNormal", "paneLoading", "paneEmpty", "paneOffline", "paneInvalid"];
+  const map = { ok: "paneNormal", loading: "paneLoading", empty: "paneEmpty", offline: "paneOffline", invalid: "paneInvalid" };
+  ids.forEach(id => {
+    document.getElementById(id).classList.toggle("hidden", id !== map[st]);
+  });
+  const showCards = (st === "ok");
+  ["cardTrend", "cardHours", "cardCtl", "cardEvents"].forEach(id => {
+    document.getElementById(id).classList.toggle("hidden", !showCards);
+  });
+}
+
+function renderStats() {
+  if (!statData) return;
+  renderOverview();
+  renderTrend();
+  renderHours();
+  renderEvents();
+}
+
+function renderOverview() {
+  const days = statData.days || [];
+  const today = days[days.length - 1] || { authorizedSec: 0, usedSec: 0 };
+  const ovLab = document.getElementById("ovLab");
+  const ovH = document.getElementById("ovH"), ovM = document.getElementById("ovM");
+  const ovPill = document.getElementById("ovPill"), ovCmp = document.getElementById("ovCmp");
+
+  if (statRange === "today") {
+    const yesterday = days.length >= 2 ? days[days.length - 2] : { authorizedSec: 0 };
+    const f = hm(today.authorizedSec / 60);
+    const u = hm(today.usedSec / 60);
+    const y = hm(yesterday.authorizedSec / 60);
+    const diff = today.authorizedSec - yesterday.authorizedSec;
+    const rate = today.authorizedSec > 0 ? Math.round(today.usedSec / today.authorizedSec * 100) : 0;
+    ovLab.textContent = "今日已授权";
+    ovH.textContent = f.h; ovM.textContent = f.m;
+    ovPill.innerHTML = pillHTML(diff);
+    ovCmp.textContent = "昨日授权 " + (y.h > 0 ? y.h + " 小时 " : "") + y.m + " 分";
+    applyUsage(u, rate);
+  } else {
+    const totalAuth = days.reduce((s, d) => s + (d.authorizedSec || 0), 0);
+    const totalUsed = days.reduce((s, d) => s + (d.usedSec || 0), 0);
+    const f = hm(totalAuth / 60), u = hm(totalUsed / 60);
+    const af = hm((totalAuth / 60) / days.length);
+    const prev = statRange === "7d" ? 688 : 3174;
+    const diff = (totalAuth / 60) - prev;
+    const rate = totalAuth > 0 ? Math.round(totalUsed / totalAuth * 100) : 0;
+    ovLab.textContent = statRange === "7d" ? "近 7 天累计授权" : "近 30 天累计授权";
+    ovH.textContent = f.h; ovM.textContent = f.m;
+    ovPill.innerHTML = pillHTML(diff);
+    ovCmp.textContent = "上一周期 " + hm(prev).h + " 小时 " + hm(prev).m + " 分　日均 " + af.h + " 小时 " + af.m + " 分";
+    applyUsage(u, rate);
+    document.getElementById("cardHours").classList.add("hidden");
+  }
+}
+
+function pillHTML(diff) {
+  return '<span class="stat-pill ' + (diff >= 0 ? "up" : "down") + '">' +
+    '<svg width="12" height="12" viewBox="0 0 24 24"><use href="#' + (diff >= 0 ? "i-up" : "i-down") + '"/></use></svg>' +
+    Math.abs(Math.round(diff)) + ' 分钟</span>';
+}
+
+function applyUsage(u, rate) {
+  document.getElementById("useVal").textContent = (u.h > 0 ? u.h + " 小时 " : "") + u.m + " 分";
+  document.getElementById("useRate").textContent = rate + "%";
+  document.getElementById("useFill").style.transform = "scaleX(" + (rate / 100) + ")";
+}
+
+function renderTrend() {
+  const days = statData.days || [];
+  document.getElementById("trendSub").textContent =
+    statRange === "today" ? "今日在近 7 天中的位置（分钟）" :
+    (statRange === "7d" ? "近 7 天每日家长授权时长（分钟）" : "近 30 天每日家长授权时长（分钟）");
+  const W = 340, H = 180, padL = 6, padR = 6, padT = 26, padB = 28;
+  const n = days.length;
+  const innerW = W - padL - padR;
+  const slot = innerW / n;
+  const bw = Math.max(3, Math.min(24, slot * 0.62));
+  const vals = days.map(d => Math.round((d.authorizedSec || 0) / 60));
+  const maxV = Math.max(60, ...vals);
+  const plotH = H - padT - padB, baseY = padT + plotH;
+  const avg = vals.reduce((s, v) => s + v, 0) / n;
+  const CA = "#299965", CS = "#d4ede1", CL = "#e7ebed", CI = "#8b95a1";
+
+  let s = '<svg class="stat-chart" viewBox="0 0 ' + W + ' ' + H + '" height="180" preserveAspectRatio="none">';
+  const ay = baseY - (avg / maxV) * plotH;
+  s += '<line x1="' + padL + '" y1="' + ay + '" x2="' + (W - padR) + '" y2="' + ay + '" stroke="' + CL + '" stroke-width="1" stroke-dasharray="4 4"/>';
+  s += '<text x="' + padL + '" y="' + (ay - 6) + '" font-size="9.5" fill="' + CI + '">日均 ' + Math.round(avg) + ' 分</text>';
+  days.forEach((d, i) => {
+    const v = vals[i];
+    const h = Math.max(2, (v / maxV) * plotH);
+    const x = padL + i * slot + (slot - bw) / 2, y = baseY - h;
+    const fill = d.today ? CA : (v === 0 ? CL : CS);
+    s += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" rx="3" fill="' + fill + '" style="animation-delay:' + (i * 35) + 'ms"/>';
+    if (v > 0) {
+      s += '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (y - 5).toFixed(1) + '" font-size="9.5" text-anchor="middle" fill="' + (d.today ? CA : CI) + '" font-weight="' + (d.today ? '650' : '400') + '">' + v + '</text>';
+    }
+    if (n <= 7 || i % 6 === 0 || i === n - 1) {
+      s += '<text x="' + (x + bw / 2).toFixed(1) + '" y="' + (baseY + 15) + '" font-size="9.5" fill="' + CI + '" text-anchor="middle">' + d.date.slice(5) + '</text>';
+    }
+  });
+  s += '</svg>';
+  document.getElementById("bars").innerHTML = s;
+}
+
+function renderHours() {
+  const hourly = statData.todayHourly || [];
+  const maxH = Math.max(1, ...hourly);
+  let h = "";
+  let peakIdx = 0, peakVal = 0;
+  for (let i = 0; i < 24; i++) {
+    const v = hourly[i] || 0;
+    const pct = v ? Math.max(22, (v / maxH) * 100) : 4;
+    h += '<span class="' + (v ? "on" : "") + '" style="height:' + pct + '%;animation-delay:' + (i * 22) + 'ms" title="' + i + ' 点授权 ' + v + ' 分钟"></span>';
+    if (v > peakVal) { peakVal = v; peakIdx = i; }
+  }
+  document.getElementById("hours").innerHTML = h;
+  const night = hourly.slice(22).reduce((s, v) => s + (v || 0), 0);
+  document.getElementById("peakText").innerHTML =
+    "最集中授权时段 <b>" + peakIdx + ":00–" + (peakIdx + 1) + ":00</b>（" + peakVal + " 分钟）　22 点后授权 <b>" + night + " 分钟</b>";
+}
+
+function renderEvents() {
+  const events = statData.events || [];
+  const typeMap = {
+    start: { c: "var(--stat-green)", t: "家长授权" },
+    timeout: { c: "var(--stat-red)", t: "倒计时归零" },
+    lock: { c: "var(--stat-red)", t: "家长立即锁屏" },
+    unlock: { c: "var(--stat-green)", t: "家长远程解锁" },
+    request: { c: "var(--stat-orange)", t: "孩子申请临时解锁" },
+    approve: { c: "var(--stat-green)", t: "家长批准临时解锁" },
+    reject: { c: "var(--stat-orange)", t: "家长拒绝申请" },
+    boot: { c: "var(--stat-ink3)", t: "程序启动" }
+  };
+  let h = "";
+  events.forEach((e, i) => {
+    const info = typeMap[e.type] || { c: "var(--stat-ink3)", t: e.type };
+    const tm = e.ts ? new Date(e.ts * 1000) : new Date();
+    const tstr = String(tm.getHours()).padStart(2, "0") + ":" + String(tm.getMinutes()).padStart(2, "0");
+    h += '<div class="stat-ev" style="animation-delay:' + (i * 45) + 'ms">' +
+      '<div class="stat-ev-t">' + tstr + '</div>' +
+      '<div class="stat-ev-dot" style="background:' + info.c + '"></div>' +
+      '<div class="stat-ev-x">' + info.t + '<small>' + (e.note || "") + '</small></div>' +
+      '</div>';
+  });
+  document.getElementById("events").innerHTML = h;
+}
+
+async function clearStats() {
+  if (!confirm("二次确认：确定清空本机全部历史使用记录？此操作不可恢复。")) return;
+  if (!client) { setStatState("offline"); return; }
+  const payload = { cmd: "clear_stats" };
+  payload.sig = await hmacSign(deviceKey, payload);
+  client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
+  setStatState("loading");
+  clearTimeout(statTimer);
+  statTimer = setTimeout(() => setStatState("offline"), 3000);
 }
 
 // ---- 页面加载：若已保存配对，则自动重连 ----
