@@ -399,14 +399,34 @@ let deviceId = "", deviceKey = "";
 let lastRemaining = 0;
 
 // ---- HMAC-SHA256 签名（Web Crypto）----
+// 递归排序所有 key，与电脑端 json.dumps(..., sort_keys=True) 保持一致。
+// 这是必需的：stats 回报包含 days / counts 等嵌套对象，若只排序顶层，
+// 嵌套对象内部的键序不同会导致签名校验失败。
+function sortKeysRecursively(obj) {
+  if (Array.isArray(obj)) return obj.map(sortKeysRecursively);
+  if (obj !== null && typeof obj === "object") {
+    const sorted = {};
+    Object.keys(obj).sort().forEach(k => {
+      sorted[k] = sortKeysRecursively(obj[k]);
+    });
+    return sorted;
+  }
+  return obj;
+}
+
 async function hmacSign(key, obj) {
-  const msg = JSON.stringify(obj, Object.keys(obj).sort());
+  const msg = JSON.stringify(sortKeysRecursively(obj));
   const enc = new TextEncoder();
   const cryptoKey = await crypto.subtle.importKey(
     "raw", enc.encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
   );
   const sig = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(msg));
   return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// 调试用：验证 JS 签名与 Python 端是否一致（按需使用）
+function debugSign(key, obj) {
+  return hmacSign(key, obj).then(sig => { console.log("JS sig:", sig); return sig; });
 }
 
 function topic(cmd) { return `scrlock/${deviceId}/${cmd}`; }
