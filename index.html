@@ -753,7 +753,7 @@ function renderOverview() {
     const f = hm(today.authorizedSec / 60);
     const u = hm(today.usedSec / 60);
     const y = hm(yesterday.authorizedSec / 60);
-    const diff = today.authorizedSec - yesterday.authorizedSec;
+    const diff = (today.authorizedSec - yesterday.authorizedSec) / 60;
     const rate = today.authorizedSec > 0 ? Math.round(today.usedSec / today.authorizedSec * 100) : 0;
     ovLab.textContent = "今日已授权";
     ovH.textContent = f.h; ovM.textContent = f.m;
