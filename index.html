@@ -67,10 +67,10 @@
   .stat-entry-badge { width: 38px; height: 38px; border-radius: 11px; flex: none;
     background: var(--stat-green-wash); color: var(--stat-green); display: flex;
     align-items: center; justify-content: center; }
-  .stat-entry-txt { flex: 1; min-width: 0; }
+  .stat-entry-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
   .stat-entry-t { font-size: 15px; font-weight: 600; }
-  .stat-entry-s { font-size: 12px; color: var(--stat-ink3); margin-top: 1px; }
-  .stat-entry-val { text-align: right; flex: none; }
+  .stat-entry-s { font-size: 12px; color: var(--stat-ink3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat-entry-val { text-align: right; flex: none; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; }
   .stat-entry-v { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
   .stat-entry-k { font-size: 11px; color: var(--stat-ink3); }
   .stat-chev { color: #ccc; flex: none; transition: transform .28s var(--stat-ease); }
@@ -271,7 +271,7 @@
   <span class="stat-entry-badge"><svg class="stat-ico" width="22" height="22" viewBox="0 0 24 24"><use href="#i-chart"/></svg></span>
   <span class="stat-entry-txt">
     <span class="stat-entry-t">使用统计</span>
-    <span class="stat-entry-s">查看家长授权时长与分布</span>
+    <span class="stat-entry-s">授权时长与分布</span>
   </span>
   <span class="stat-entry-val">
     <span class="stat-entry-v" id="statEntryVal">--</span>
