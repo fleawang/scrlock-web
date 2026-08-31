@@ -738,6 +738,7 @@ function renderStats() {
   renderOverview();
   renderTrend();
   renderHours();
+  renderCtl();
   renderEvents();
 }
 
@@ -841,6 +842,24 @@ function renderHours() {
   const night = hourly.slice(22).reduce((s, v) => s + (v || 0), 0);
   document.getElementById("peakText").innerHTML =
     "最集中授权时段 <b>" + peakIdx + ":00–" + (peakIdx + 1) + ":00</b>（" + peakVal + " 分钟）　22 点后授权 <b>" + night + " 分钟</b>";
+}
+
+function renderCtl() {
+  const days = statData.days || [];
+  const today = days[days.length - 1] || { counts: {}, authorizedSec: 0 };
+  const c = today.counts || {};
+  // 授权次数：家长直接授权 + 批准临时解锁
+  const sessions = (c.start || 0) + (c.approve || 0);
+  // 锁屏次数：家长立即锁屏 + 倒计时归零自动锁屏
+  const locks = (c.lock || 0) + (c.timeout || 0);
+  // 申请次数：孩子申请临时解锁
+  const requests = c.request || 0;
+  const authMin = Math.round((today.authorizedSec || 0) / 60);
+
+  document.getElementById("ctlSessions").textContent = sessions;
+  document.getElementById("ctlLocks").textContent = locks;
+  document.getElementById("ctlRequests").textContent = requests;
+  document.getElementById("ctlAuthMin").textContent = authMin > 0 ? authMin + " 分钟" : "--";
 }
 
 function renderEvents() {
