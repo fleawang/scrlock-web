@@ -236,6 +236,8 @@
   <div id="reader" class="hidden"></div>
   <label style="margin-top:14px">Broker 地址（高级设置，默认无需修改）</label>
   <input id="brokerUrl" placeholder="wss://broker.hivemq.com:8884/mqtt" autocapitalize="off" autocomplete="off" spellcheck="false" />
+  <input id="brokerUser" placeholder="Broker 用户名（公共 broker 留空）" autocapitalize="off" autocomplete="off" style="margin-top:8px" />
+  <input id="brokerPass" type="password" placeholder="Broker 密码（公共 broker 留空）" autocomplete="off" style="margin-top:8px" />
   <div class="hint">在电脑端首次运行时，会显示 设备ID 与 密钥。可手动填入，或点「扫码配对」扫描电脑上的二维码自动填写。网页本身即控制权，请妥善保管。</div>
   <div class="hint">Broker 地址：电脑端与手机端必须一致。更换 broker 时改这里即可（也可用 <code>?broker=wss://…</code> 打开本页自动填入）。</div>
 </div>
@@ -399,6 +401,8 @@
 const DEFAULT_BROKER_WS = "wss://broker.hivemq.com:8884/mqtt";
 const LS_KEY = "scrlock_pair";        // 持久化配对信息
 const LS_BROKER = "scrlock_broker";   // 持久化 broker 地址
+const LS_BROKER_USER = "scrlock_broker_user";   // 持久化 broker 用户名
+const LS_BROKER_PASS = "scrlock_broker_pass";   // 持久化 broker 密码（私有 broker 才用）
 let client = null;
 let deviceId = "", deviceKey = "";
 let lastRemaining = 0;
@@ -480,9 +484,24 @@ function initBrokerField() {
     if (q) { v = q; localStorage.setItem(LS_BROKER, q); }
   } catch (e) {}
   el.value = v || DEFAULT_BROKER_WS;
+  const uEl = document.getElementById("brokerUser");
+  const pEl = document.getElementById("brokerPass");
+  if (uEl) { try { uEl.value = localStorage.getItem(LS_BROKER_USER) || ""; } catch (e) {} }
+  if (pEl) { try { pEl.value = localStorage.getItem(LS_BROKER_PASS) || ""; } catch (e) {} }
 }
 function saveBroker(url) {
   try { localStorage.setItem(LS_BROKER, url); } catch (e) {}
+}
+function saveBrokerCreds(user, pass) {
+  try {
+    localStorage.setItem(LS_BROKER_USER, user || "");
+    localStorage.setItem(LS_BROKER_PASS, pass || "");
+  } catch (e) {}
+}
+function getBrokerCreds() {
+  const uEl = document.getElementById("brokerUser");
+  const pEl = document.getElementById("brokerPass");
+  return { user: uEl ? uEl.value.trim() : "", pass: pEl ? pEl.value : "" };
 }
 
 function doPair() {
@@ -504,12 +523,15 @@ function connectAndSubscribe() {
     return;
   }
   const brokerUrl = getBrokerUrl();
+  const creds = getBrokerCreds();
+  const opts = {
+    clientId: "scrlock-web-" + Math.random().toString(16).slice(2),
+    connectTimeout: 8000,
+    reconnectPeriod: 3000,
+  };
+  if (creds.user) { opts.username = creds.user; opts.password = creds.pass; }
   try {
-    client = mqtt.connect(brokerUrl, {
-      clientId: "scrlock-web-" + Math.random().toString(16).slice(2),
-      connectTimeout: 8000,
-      reconnectPeriod: 3000,
-    });
+    client = mqtt.connect(brokerUrl, opts);
   } catch (e) {
     alert("连接初始化失败：" + e);
     return;
@@ -524,6 +546,7 @@ function connectAndSubscribe() {
     client.subscribe(topic("stats"), { qos: 1 });
     savePair();   // 配对成功，持久化
     saveBroker(brokerUrl);   // 记住本次成功连接的 broker 地址
+    saveBrokerCreds(creds.user, creds.pass);   // 记住 broker 账号（私有 broker 才用）
     // 主动查询最新状态：家长若晚开网页，可补看到"孩子已申请、等待审批"等错过的状态
     queryNow();
   });
