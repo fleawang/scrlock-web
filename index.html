@@ -618,9 +618,22 @@ function changeBroker() {
   if (!v) return;
   const url = v.trim();
   if (!url) return;
+
+  const curCreds = getBrokerCreds();
+  const u = prompt("Broker 用户名（公共 broker 留空）：", curCreds.user);
+  if (u === null) return;
+  const p = prompt("Broker 密码（公共 broker 留空）：", curCreds.pass);
+  if (p === null) return;
+
   const el = document.getElementById("brokerUrl");
+  const uEl = document.getElementById("brokerUser");
+  const pEl = document.getElementById("brokerPass");
   if (el) el.value = url;
+  if (uEl) uEl.value = u.trim();
+  if (pEl) pEl.value = p;
+
   saveBroker(url);
+  saveBrokerCreds(u.trim(), p);
   if (client) { try { client.end(true); } catch (e) {} client = null; }
   setStatus("正在连接 " + url + " …");
   connectAndSubscribe();
