@@ -235,10 +235,11 @@
   <button class="btn-scan" id="scanBtn" onclick="toggleScan()">扫码配对</button>
   <div id="reader" class="hidden"></div>
   <div class="hint">在电脑端首次运行时，会显示 设备ID 与 密钥。可手动填入，或点「扫码配对」扫描电脑上的二维码自动填写。网页本身即控制权，请妥善保管。</div>
+  <div class="hint"><a href="javascript:void(0)" onclick="toggleBrokerCard()" style="color:#10aeff">连接设置（Broker / 换服务器，一般无需修改）</a></div>
 </div>
 
 <!-- 连接设置（常驻显示：换 broker、填账号都在这里，不依赖弹窗） -->
-<div class="card" id="brokerCard">
+<div class="card hidden" id="brokerCard">
   <div style="font-size:15px;font-weight:600">连接设置（Broker）</div>
   <div class="hint" style="margin-top:4px">电脑端与手机端必须填同一个 broker；私有 broker 需填用户名/密码，公共 broker 可留空。</div>
   <label>Broker 地址</label>
@@ -275,7 +276,7 @@
     立即锁屏
   </button>
   <button class="btn-unlock" onclick="sendUnlock()">解锁 / 解除锁屏</button>
-  <button class="btn-exit" onclick="document.getElementById('brokerCard').scrollIntoView({behavior:'smooth'})" style="background:#666">连接设置（换 Broker）</button>
+  <button class="btn-exit" onclick="toggleBrokerCard()" style="background:#666">连接设置（换 Broker）</button>
   <button class="btn-exit" onclick="exitPair()">退出配对</button>
   <div class="hint">立即锁屏：无视当前倒计时，马上锁住电脑并清零倒计时设置；倒计时中点击可取消本次倒计时；解锁按钮可远程解除（孩子继续可用）。配对状态会自动保存，重开本网页无需重新输入。</div>
 </div>
@@ -555,6 +556,7 @@ function connectAndSubscribe() {
     document.getElementById("pairCard").classList.add("hidden");
     document.getElementById("ctrlCard").classList.remove("hidden");
     document.getElementById("statEntry").classList.remove("hidden");
+    toggleBrokerCard(false);   // 连上后自动收起「连接设置」
     setStatus("已连接，等待状态…");
     client.subscribe(topic("state"), { qos: 1 });
     client.subscribe(requestTopic(), { qos: 1 });
@@ -565,7 +567,10 @@ function connectAndSubscribe() {
     // 主动查询最新状态：家长若晚开网页，可补看到"孩子已申请、等待审批"等错过的状态
     queryNow();
   });
-  client.on("error", e => setStatus("连接错误(" + brokerUrl + " user=" + (creds.user || "空") + ")：" + (e && e.message ? e.message : e)));
+  client.on("error", e => {
+    setStatus("连接错误(" + brokerUrl + " user=" + (creds.user || "空") + ")：" + (e && e.message ? e.message : e));
+    if (!creds.user) toggleBrokerCard(true);   // 没带账号 → 自动展开「连接设置」方便填写
+  });
   client.on("offline", () => setStatus("已断开，重连中…"));
   client.on("message", async (tp, payload) => {
     if (tp === topic("state")) {
@@ -623,6 +628,15 @@ function exitPair() {
   document.getElementById("statsBody").classList.add("hidden");
   document.getElementById("pairCard").classList.remove("hidden");
   setStatus("已退出配对");
+}
+
+// 展开/收起「连接设置」卡片（默认隐藏；force=true/false 可强制）
+function toggleBrokerCard(force) {
+  const el = document.getElementById("brokerCard");
+  if (!el) return;
+  const show = (typeof force === "boolean") ? force : el.classList.contains("hidden");
+  el.classList.toggle("hidden", !show);
+  if (show) { try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {} }
 }
 
 // 保存「连接设置」卡片里的 broker 地址/账号并立即重连（页面按钮调用，不用弹窗）
