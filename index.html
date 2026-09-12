@@ -715,7 +715,7 @@ async function sendUnlock() {
 }
 
 async function sendLock() {
-  if (!confirm("确定立即锁屏？当前倒计时设置将被清零。")) return;
+  // 直接锁屏（按需求去掉二次确认弹窗）
   const payload = { cmd: "lock" };
   payload.sig = await hmacSign(deviceKey, payload);
   pendingCommand = "lock";
