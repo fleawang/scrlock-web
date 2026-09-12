@@ -234,12 +234,20 @@
   <button class="btn-pair" onclick="doPair()">配对并连接</button>
   <button class="btn-scan" id="scanBtn" onclick="toggleScan()">扫码配对</button>
   <div id="reader" class="hidden"></div>
-  <label style="margin-top:14px">Broker 地址（高级设置，默认无需修改）</label>
-  <input id="brokerUrl" placeholder="wss://broker.hivemq.com:8884/mqtt" autocapitalize="off" autocomplete="off" spellcheck="false" />
-  <input id="brokerUser" placeholder="Broker 用户名（公共 broker 留空）" autocapitalize="off" autocomplete="off" style="margin-top:8px" />
-  <input id="brokerPass" type="password" placeholder="Broker 密码（公共 broker 留空）" autocomplete="off" style="margin-top:8px" />
   <div class="hint">在电脑端首次运行时，会显示 设备ID 与 密钥。可手动填入，或点「扫码配对」扫描电脑上的二维码自动填写。网页本身即控制权，请妥善保管。</div>
-  <div class="hint">Broker 地址：电脑端与手机端必须一致。更换 broker 时改这里即可（也可用 <code>?broker=wss://…</code> 打开本页自动填入）。</div>
+</div>
+
+<!-- 连接设置（常驻显示：换 broker、填账号都在这里，不依赖弹窗） -->
+<div class="card" id="brokerCard">
+  <div style="font-size:15px;font-weight:600">连接设置（Broker）</div>
+  <div class="hint" style="margin-top:4px">电脑端与手机端必须填同一个 broker；私有 broker 需填用户名/密码，公共 broker 可留空。</div>
+  <label>Broker 地址</label>
+  <input id="brokerUrl" placeholder="wss://broker.hivemq.com:8884/mqtt" autocapitalize="off" autocomplete="off" spellcheck="false" />
+  <label>Broker 用户名（公共 broker 可留空）</label>
+  <input id="brokerUser" placeholder="私有 broker 用户名" autocapitalize="off" autocomplete="off" />
+  <label>Broker 密码（公共 broker 可留空）</label>
+  <input id="brokerPass" type="password" placeholder="私有 broker 密码" autocomplete="off" />
+  <button class="btn-pair" onclick="applyBrokerAndReconnect()">保存并重连</button>
 </div>
 
 <!-- 控制区 -->
@@ -267,7 +275,7 @@
     立即锁屏
   </button>
   <button class="btn-unlock" onclick="sendUnlock()">解锁 / 解除锁屏</button>
-  <button class="btn-exit" onclick="changeBroker()" style="background:#666">更换 Broker 地址</button>
+  <button class="btn-exit" onclick="document.getElementById('brokerCard').scrollIntoView({behavior:'smooth'})" style="background:#666">连接设置（换 Broker）</button>
   <button class="btn-exit" onclick="exitPair()">退出配对</button>
   <div class="hint">立即锁屏：无视当前倒计时，马上锁住电脑并清零倒计时设置；倒计时中点击可取消本次倒计时；解锁按钮可远程解除（孩子继续可用）。配对状态会自动保存，重开本网页无需重新输入。</div>
 </div>
@@ -617,30 +625,13 @@ function exitPair() {
   setStatus("已退出配对");
 }
 
-// 更换 Broker（连接中也可用）：改地址后立即重连，用于某个 broker 故障时快速切走。
-// 注意：电脑端也要改成同一个 broker（编辑 %USERPROFILE%\.scrlock\broker.json 后重启）。
-function changeBroker() {
-  const cur = getBrokerUrl();
-  const v = prompt("输入新的 Broker 地址（形如 wss://主机:端口/路径）：", cur);
-  if (!v) return;
-  const url = v.trim();
-  if (!url) return;
-
-  const curCreds = getBrokerCreds();
-  const u = prompt("Broker 用户名（公共 broker 留空）：", curCreds.user);
-  if (u === null) return;
-  const p = prompt("Broker 密码（公共 broker 留空）：", curCreds.pass);
-  if (p === null) return;
-
-  const el = document.getElementById("brokerUrl");
-  const uEl = document.getElementById("brokerUser");
-  const pEl = document.getElementById("brokerPass");
-  if (el) el.value = url;
-  if (uEl) uEl.value = u.trim();
-  if (pEl) pEl.value = p;
-
+// 保存「连接设置」卡片里的 broker 地址/账号并立即重连（页面按钮调用，不用弹窗）
+function applyBrokerAndReconnect() {
+  const url = getBrokerUrl();
+  const c = getBrokerCreds();
+  if (!url) { alert("请填写 Broker 地址"); return; }
   saveBroker(url);
-  saveBrokerCreds(u.trim(), p);
+  saveBrokerCreds(c.user, c.pass);
   if (client) { try { client.end(true); } catch (e) {} client = null; }
   setStatus("正在连接 " + url + " …");
   connectAndSubscribe();
