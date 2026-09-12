@@ -234,7 +234,10 @@
   <button class="btn-pair" onclick="doPair()">配对并连接</button>
   <button class="btn-scan" id="scanBtn" onclick="toggleScan()">扫码配对</button>
   <div id="reader" class="hidden"></div>
+  <label style="margin-top:14px">Broker 地址（高级设置，默认无需修改）</label>
+  <input id="brokerUrl" placeholder="wss://broker.hivemq.com:8884/mqtt" autocapitalize="off" autocomplete="off" spellcheck="false" />
   <div class="hint">在电脑端首次运行时，会显示 设备ID 与 密钥。可手动填入，或点「扫码配对」扫描电脑上的二维码自动填写。网页本身即控制权，请妥善保管。</div>
+  <div class="hint">Broker 地址：电脑端与手机端必须一致。更换 broker 时改这里即可（也可用 <code>?broker=wss://…</code> 打开本页自动填入）。</div>
 </div>
 
 <!-- 控制区 -->
@@ -262,6 +265,7 @@
     立即锁屏
   </button>
   <button class="btn-unlock" onclick="sendUnlock()">解锁 / 解除锁屏</button>
+  <button class="btn-exit" onclick="changeBroker()" style="background:#666">更换 Broker 地址</button>
   <button class="btn-exit" onclick="exitPair()">退出配对</button>
   <div class="hint">立即锁屏：无视当前倒计时，马上锁住电脑并清零倒计时设置；倒计时中点击可取消本次倒计时；解锁按钮可远程解除（孩子继续可用）。配对状态会自动保存，重开本网页无需重新输入。</div>
 </div>
@@ -392,11 +396,13 @@
 </div>
 
 <script>
-const BROKER_WS = "wss://broker.hivemq.com:8884/mqtt";
-const LS_KEY = "scrlock_pair";   // 持久化配对信息
+const DEFAULT_BROKER_WS = "wss://broker.hivemq.com:8884/mqtt";
+const LS_KEY = "scrlock_pair";        // 持久化配对信息
+const LS_BROKER = "scrlock_broker";   // 持久化 broker 地址
 let client = null;
 let deviceId = "", deviceKey = "";
 let lastRemaining = 0;
+let pendingCommand = "";
 
 // ---- HMAC-SHA256 签名（Web Crypto）----
 // 递归排序所有 key，与电脑端 json.dumps(..., sort_keys=True) 保持一致。
@@ -457,6 +463,28 @@ function clearPair() {
   try { localStorage.removeItem(LS_KEY); } catch (e) {}
 }
 
+// ---- Broker 地址可配置 ----
+// 优先级：?broker= 参数 > 页面输入框 > localStorage 记住 > 内置默认
+function getBrokerUrl() {
+  const el = document.getElementById("brokerUrl");
+  const v = el ? el.value.trim() : "";
+  return v || DEFAULT_BROKER_WS;
+}
+function initBrokerField() {
+  const el = document.getElementById("brokerUrl");
+  if (!el) return;
+  let v = "";
+  try { v = localStorage.getItem(LS_BROKER) || ""; } catch (e) {}
+  try {
+    const q = new URLSearchParams(location.search).get("broker");
+    if (q) { v = q; localStorage.setItem(LS_BROKER, q); }
+  } catch (e) {}
+  el.value = v || DEFAULT_BROKER_WS;
+}
+function saveBroker(url) {
+  try { localStorage.setItem(LS_BROKER, url); } catch (e) {}
+}
+
 function doPair() {
   deviceId = document.getElementById("deviceId").value.trim().toUpperCase();
   deviceKey = document.getElementById("deviceKey").value.trim();
@@ -475,8 +503,9 @@ function connectAndSubscribe() {
     alert("MQTT 库未加载（mqtt.min.js 缺失或被拦截）。\n请将 web_control 整个文件夹一起使用，或改用 https 方式打开网页。");
     return;
   }
+  const brokerUrl = getBrokerUrl();
   try {
-    client = mqtt.connect(BROKER_WS, {
+    client = mqtt.connect(brokerUrl, {
       clientId: "scrlock-web-" + Math.random().toString(16).slice(2),
       connectTimeout: 8000,
       reconnectPeriod: 3000,
@@ -494,10 +523,11 @@ function connectAndSubscribe() {
     client.subscribe(requestTopic(), { qos: 1 });
     client.subscribe(topic("stats"), { qos: 1 });
     savePair();   // 配对成功，持久化
+    saveBroker(brokerUrl);   // 记住本次成功连接的 broker 地址
     // 主动查询最新状态：家长若晚开网页，可补看到"孩子已申请、等待审批"等错过的状态
     queryNow();
   });
-  client.on("error", e => setStatus("连接错误：" + (e && e.message ? e.message : e)));
+  client.on("error", e => setStatus("连接错误(" + brokerUrl + ")：" + (e && e.message ? e.message : e)));
   client.on("offline", () => setStatus("已断开，重连中…"));
   client.on("message", async (tp, payload) => {
     if (tp === topic("state")) {
@@ -512,7 +542,8 @@ function connectAndSubscribe() {
           lastRemaining = d.remaining || 0;
           document.getElementById("timer").textContent = fmt(lastRemaining);
         }
-        setStatus("状态：" + (map[d.state] || d.state));
+        setStatus(pendingCommand ? "电脑已确认：" + (map[d.state] || d.state) : "状态：" + (map[d.state] || d.state));
+        pendingCommand = "";
         // 待审批申请
         if (d.pending_request) {
           document.getElementById("approveCard").classList.remove("hidden");
@@ -554,6 +585,22 @@ function exitPair() {
   document.getElementById("statsBody").classList.add("hidden");
   document.getElementById("pairCard").classList.remove("hidden");
   setStatus("已退出配对");
+}
+
+// 更换 Broker（连接中也可用）：改地址后立即重连，用于某个 broker 故障时快速切走。
+// 注意：电脑端也要改成同一个 broker（编辑 %USERPROFILE%\.scrlock\broker.json 后重启）。
+function changeBroker() {
+  const cur = getBrokerUrl();
+  const v = prompt("输入新的 Broker 地址（形如 wss://主机:端口/路径）：", cur);
+  if (!v) return;
+  const url = v.trim();
+  if (!url) return;
+  const el = document.getElementById("brokerUrl");
+  if (el) el.value = url;
+  saveBroker(url);
+  if (client) { try { client.end(true); } catch (e) {} client = null; }
+  setStatus("正在连接 " + url + " …");
+  connectAndSubscribe();
 }
 
 // ---- 扫码配对 ----
@@ -606,38 +653,35 @@ async function sendStart() {
   if (!warnBefore || warnBefore <= 0) warnBefore = 5;   // 异常兜底
   const payload = { cmd: "start", minutes, warnBefore };
   payload.sig = await hmacSign(deviceKey, payload);
+  pendingCommand = "start";
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
-  setStatus(`已发送：开始倒计时 ${minutes} 分钟（剩 ${warnBefore} 分提醒）`);
+  setStatus(`等待电脑确认：开始倒计时 ${minutes} 分钟（剩 ${warnBefore} 分提醒）`);
 }
 
 async function sendUnlock() {
   const payload = { cmd: "unlock" };
   payload.sig = await hmacSign(deviceKey, payload);
+  pendingCommand = "unlock";
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
-  setStatus("已发送：解锁 / 解除锁屏");
-  // 乐观更新：立即清空倒计时与状态，避免电脑回报前仍显示"临时解锁中"倒计时
-  document.getElementById("approveCard").classList.add("hidden");
-  document.getElementById("timer").textContent = "--:--";
-  setStatus("状态：已解除");
+  setStatus("等待电脑确认：解锁 / 解除锁屏");
 }
 
 async function sendLock() {
   if (!confirm("确定立即锁屏？当前倒计时设置将被清零。")) return;
   const payload = { cmd: "lock" };
   payload.sig = await hmacSign(deviceKey, payload);
+  pendingCommand = "lock";
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
-  setStatus("已发送：立即锁屏");
-  // 乐观更新：立即显示已锁屏、清空倒计时
-  document.getElementById("timer").textContent = "--:--";
-  setStatus("状态：已锁屏");
+  setStatus("等待电脑确认：立即锁屏");
 }
 
 async function sendApprove() {
   const payload = { cmd: "approve" };
   payload.sig = await hmacSign(deviceKey, payload);
+  pendingCommand = "approve";
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
   document.getElementById("approveCard").classList.add("hidden");
-  setStatus("已批准：临时解锁5分钟");
+  setStatus("等待电脑确认：批准临时解锁 5 分钟");
 }
 
 // 主动查询当前最新状态（网页打开/重连时调用），让迟到打开的网页也能补看到
@@ -652,9 +696,10 @@ async function queryNow() {
 async function sendReject() {
   const payload = { cmd: "reject" };
   payload.sig = await hmacSign(deviceKey, payload);
+  pendingCommand = "reject";
   client.publish(topic("cmd"), JSON.stringify(payload), { qos: 1 });
   document.getElementById("approveCard").classList.add("hidden");
-  setStatus("已拒绝本次申请");
+  setStatus("等待电脑确认：拒绝本次申请");
 }
 
 // ---- 使用统计 ----
@@ -901,6 +946,7 @@ async function clearStats() {
 
 // ---- 页面加载：若已保存配对，则自动重连 ----
 window.addEventListener("DOMContentLoaded", () => {
+  initBrokerField();   // 先恢复 broker 地址，再自动连接
   const p = loadPair();
   if (p) {
     deviceId = p.deviceId;
