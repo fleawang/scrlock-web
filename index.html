@@ -478,16 +478,23 @@ function initBrokerField() {
   const el = document.getElementById("brokerUrl");
   if (!el) return;
   let v = "";
+  let qu = null, qp = null;
   try { v = localStorage.getItem(LS_BROKER) || ""; } catch (e) {}
   try {
-    const q = new URLSearchParams(location.search).get("broker");
+    const sp = new URLSearchParams(location.search);
+    const q = sp.get("broker");
     if (q) { v = q; localStorage.setItem(LS_BROKER, q); }
+    // 也支持 ?user=&pass= 一次性带账号（免手输、免旧缓存缺字段）
+    qu = sp.get("user");
+    qp = sp.get("pass");
+    if (qu !== null) { localStorage.setItem(LS_BROKER_USER, qu); }
+    if (qp !== null) { localStorage.setItem(LS_BROKER_PASS, qp); }
   } catch (e) {}
   el.value = v || DEFAULT_BROKER_WS;
   const uEl = document.getElementById("brokerUser");
   const pEl = document.getElementById("brokerPass");
-  if (uEl) { try { uEl.value = localStorage.getItem(LS_BROKER_USER) || ""; } catch (e) {} }
-  if (pEl) { try { pEl.value = localStorage.getItem(LS_BROKER_PASS) || ""; } catch (e) {} }
+  if (uEl) { try { uEl.value = (qu !== null ? qu : (localStorage.getItem(LS_BROKER_USER) || "")); } catch (e) {} }
+  if (pEl) { try { pEl.value = (qp !== null ? qp : (localStorage.getItem(LS_BROKER_PASS) || "")); } catch (e) {} }
 }
 function saveBroker(url) {
   try { localStorage.setItem(LS_BROKER, url); } catch (e) {}
@@ -550,7 +557,7 @@ function connectAndSubscribe() {
     // 主动查询最新状态：家长若晚开网页，可补看到"孩子已申请、等待审批"等错过的状态
     queryNow();
   });
-  client.on("error", e => setStatus("连接错误(" + brokerUrl + ")：" + (e && e.message ? e.message : e)));
+  client.on("error", e => setStatus("连接错误(" + brokerUrl + " user=" + (creds.user || "空") + ")：" + (e && e.message ? e.message : e)));
   client.on("offline", () => setStatus("已断开，重连中…"));
   client.on("message", async (tp, payload) => {
     if (tp === topic("state")) {
