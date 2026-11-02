@@ -48,6 +48,22 @@
   .btn-exit { background: #999; }
   .btn-pair { background: #10aeff; }
   .btn-scan { background: #ff9f0a; }
+  .duration-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .duration-options .duration-option {
+    width: 100%; min-width: 0; height: 48px; padding: 8px 4px; margin: 0;
+    border: 1px solid #e0e0e0; border-radius: 10px; background: #fff;
+    color: #4b5560; font-size: 13px; white-space: nowrap; cursor: pointer;
+  }
+  .duration-options .duration-option[aria-pressed="true"] {
+    border-color: #07c160; background: #effaf3; color: #079447;
+  }
+  .duration-custom-input {
+    display: none; width: 100%; min-width: 0; height: 48px; padding: 8px 2px;
+    border: 1px solid #07c160; border-radius: 10px; background: #effaf3;
+    color: #079447; font-size: 15px; text-align: center;
+  }
+  .duration-custom.editing .duration-custom-option { display: none; }
+  .duration-custom.editing .duration-custom-input { display: block; }
   .hint { font-size: 12px; color: #999; margin-top: 8px; line-height: 1.5; }
   .ring { display: block; margin: 0 auto; }
   #pairCard { transition: opacity .3s; }
@@ -280,8 +296,16 @@
     <button class="btn-unlock" onclick="sendReject()">拒绝</button>
   </div>
 
-  <label>设置倒计时（分钟）</label>
-  <input id="minutes" type="number" value="15" min="1" max="600" />
+  <label id="durationLabel">设置倒计时（分钟）</label>
+  <div class="duration-options" role="group" aria-labelledby="durationLabel">
+    <button class="duration-option" type="button" data-minutes="5" aria-pressed="false" onclick="selectDuration('5')">5</button>
+    <button class="duration-option" type="button" data-minutes="15" aria-pressed="true" onclick="selectDuration('15')">15</button>
+    <button class="duration-option" type="button" data-minutes="30" aria-pressed="false" onclick="selectDuration('30')">30</button>
+    <div class="duration-custom" id="durationCustom">
+      <button class="duration-option duration-custom-option" type="button" data-minutes="custom" aria-pressed="false" aria-label="自定义倒计时时长" onclick="selectDuration('custom')">自定义</button>
+      <input class="duration-custom-input" id="customMinutes" type="number" inputmode="numeric" min="1" max="600" aria-label="自定义倒计时分钟数" />
+    </div>
+  </div>
 
   <label>提前提醒（剩余分钟时开始出现红字提示）</label>
   <input id="warnBefore" type="number" value="5" min="1" max="600" />
@@ -758,10 +782,31 @@ function stopScan() {
   document.getElementById("reader").classList.add("hidden");
 }
 
+function selectDuration(value) {
+  document.querySelectorAll(".duration-option[data-minutes]").forEach(button => {
+    button.setAttribute("aria-pressed", String(button.dataset.minutes === value));
+  });
+  const customSelected = value === "custom";
+  document.getElementById("durationCustom").classList.toggle("editing", customSelected);
+  if (customSelected) document.getElementById("customMinutes").focus();
+}
+
+function getSelectedDurationMinutes() {
+  const selected = document.querySelector('.duration-option[data-minutes][aria-pressed="true"]');
+  if (!selected) return 15;
+  if (selected.dataset.minutes === "custom") return Number(document.getElementById("customMinutes").value);
+  return parseInt(selected.dataset.minutes, 10) || 15;
+}
+
 async function sendStart() {
   if (!client || !brokerConnected || actionBusy) { showNotice("当前未连接到 Broker，请先连接。"); return; }
+  const minutes = getSelectedDurationMinutes();
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 600) {
+    document.getElementById("customMinutes").focus();
+    showNotice("自定义时间需为 1 到 600 分钟的整数。");
+    return;
+  }
   setActionBusy(true);
-  const minutes = parseInt(document.getElementById("minutes").value) || 15;
   let warnBefore = parseInt(document.getElementById("warnBefore").value);
   if (!warnBefore || warnBefore <= 0) warnBefore = 5;   // 异常兜底
   const payload = { cmd: "start", minutes, warnBefore };
